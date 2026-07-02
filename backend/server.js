@@ -11,6 +11,9 @@ const Port = process.env.PORT ;
 
 
 const app = express();
+
+app.use(express.static("public"));
+
 const httpServer = createServer(app);
 
 
@@ -29,12 +32,7 @@ httpServer.listen(Port, () => {
 });
 
 
-app.get("/", (req, res) => {
-  res.status(200).json({
-    message: "Server is running",
-    status: "success",
-  })
-});
+
 
 app.get("/health", (req, res) => {
   res.status(200).json({

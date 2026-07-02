@@ -18,14 +18,21 @@ function App() {
 
   const [users, setUsers] = useState([]);
 
-  const [isEditorMounted, setIsEditorMounted] = useState(false);
+ 
 
   const ydoc = useMemo(() => new Y.Doc(), []);
   const ytext = useMemo(() => ydoc.getText('monaco'), [ydoc]);
 
   const handleMount = (editor) => {
       editorRef.current = editor;
-      setIsEditorMounted(true);
+
+      const provider = new SocketIOProvider('http://localhost:3000', 'monaco-demo', ydoc, {autoConnect:true,});  
+      const monacoBinding = new MonacoBinding(
+          ytext,
+          editorRef.current.getModel(),
+          new Set([editorRef.current]),
+          provider.awareness
+      )
   };
 
   const handleJoin = (e) => {
@@ -35,38 +42,25 @@ function App() {
   }
 
    useEffect(() => {
-    if(username && isEditorMounted && editorRef.current){
-      const provider = new SocketIOProvider('http://localhost:3000', 'monaco', ydoc, {autoConnect:true});  
-      provider.awareness.setLocalStateField("user", {username});
+    if(username && editorRef.current){
+      const provider = new SocketIOProvider('http://localhost:3000', 'monaco', ydoc, {autoConnect:true,});  
 
-      const binding = new MonacoBinding(
-          ytext,
-          editorRef.current.getModel(),
-          new Set([editorRef.current]),
-          provider.awareness
-      );
+      provider.awereness.setLocalStateField("user", {username});
 
-      const updateUsers = () => {
-        const states  = Array.from(provider.awareness.getStates().values());
-        setUsers(states.filter(state => state.user && state.user.username).map(state => state.user));
-      };
+      provider.awareness.on("change", () => {
+        const states = Array.from(provider.awareness.getStates().values());
+        setUsers(states.map(state => state.user).filter(user => Boolean(user.username)));
+      })
 
-      updateUsers();
-      provider.awareness.on("change", updateUsers);
-
-      function handleBeforeUnload() {
-        provider.awareness.setLocalStateField("user", null);
-      }
-
-      window.addEventListener("beforeunload", handleBeforeUnload);
-   
-      return () => {
-        binding.destroy();
-        provider.disconnect();
-        window.removeEventListener("beforeunload", handleBeforeUnload);
-      }
+      const monacoBinding = new MonacoBinding(
+        ytext,
+        editorRef.current.getModel(),
+        new Set([editorRef.current]),
+        provider.awareness
+      )
     }
-  }, [username, isEditorMounted, ydoc, ytext]);
+
+  }, [editorRef.current, username]);
 
   if(!username){
     return (
@@ -97,13 +91,6 @@ function App() {
   return (
    <main className = "h-screen w-full bg-gray-950 flex gap-4 p-4">
     <aside className = 'h-full w-1/4 bg-amber-50 rounded-lg'>
-
-    <h2 className='text-2xl font-bold p-4 border-b border-gray-300'>Users</h2>
-    <ul className = 'p-4'>
-      {users.map((user, index) => (
-        <li key = {index} className = 'p-2 bg-gray-800 text-white rounded mb-2'>{user.username}</li>
-      ))}
-    </ul>
 
     </aside>
 
